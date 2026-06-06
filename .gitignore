@@ -1,0 +1,12 @@
+node_modules
+dist
+coverage
+.env
+.env.*
+!.env.example
+apps/api/prisma/migrations/*/migration_lock.toml
+*.log
+*.tsbuildinfo
+.DS_Store
+.vercel
+.railway

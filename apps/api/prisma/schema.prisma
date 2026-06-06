@@ -1,0 +1,248 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  OWNER
+  ADMIN
+  MEMBER
+  VIEWER
+}
+
+enum ProjectStatus {
+  ACTIVE
+  PAUSED
+  COMPLETED
+  ARCHIVED
+}
+
+enum TaskStatus {
+  BACKLOG
+  TODO
+  IN_PROGRESS
+  IN_REVIEW
+  DONE
+  CANCELED
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  INCOMPLETE
+}
+
+model User {
+  id                    String         @id @default(cuid())
+  email                 String         @unique
+  passwordHash          String?
+  name                  String
+  avatarUrl             String?
+  emailVerified         Boolean        @default(false)
+  emailVerificationCode String?
+  resetPasswordCode     String?
+  oauthProvider         String?
+  oauthProviderId       String?
+  memberships           Membership[]
+  assignedTasks         Task[]         @relation("TaskAssignee")
+  createdTasks          Task[]         @relation("TaskCreator")
+  comments              TaskComment[]
+  notifications         Notification[]
+  refreshTokens         RefreshToken[]
+  auditLogs             AuditLog[]
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
+}
+
+model Organization {
+  id             String          @id @default(cuid())
+  name           String
+  slug           String          @unique
+  logoUrl        String?
+  memberships    Membership[]
+  invitations    Invitation[]
+  projects       Project[]
+  tasks          Task[]
+  files          FileAsset[]
+  notifications  Notification[]
+  subscriptions  Subscription[]
+  auditLogs      AuditLog[]
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+}
+
+model Membership {
+  id             String       @id @default(cuid())
+  role           Role         @default(MEMBER)
+  userId         String
+  organizationId String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([userId, organizationId])
+  @@index([organizationId, role])
+}
+
+model Invitation {
+  id             String       @id @default(cuid())
+  email          String
+  role           Role         @default(MEMBER)
+  token          String       @unique
+  acceptedAt     DateTime?
+  expiresAt      DateTime
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now())
+
+  @@index([organizationId, email])
+}
+
+model Project {
+  id             String        @id @default(cuid())
+  name           String
+  key            String
+  description    String?
+  status         ProjectStatus @default(ACTIVE)
+  color          String        @default("#14b8a6")
+  organizationId String
+  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  tasks          Task[]
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@unique([organizationId, key])
+  @@index([organizationId, status])
+}
+
+model Task {
+  id             String        @id @default(cuid())
+  title          String
+  description    String?
+  status         TaskStatus    @default(TODO)
+  priority       Priority      @default(MEDIUM)
+  labels         String[]      @default([])
+  dueDate        DateTime?
+  position       Int           @default(0)
+  projectId      String
+  organizationId String
+  assigneeId     String?
+  creatorId      String
+  project        Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  assignee       User?         @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  creator        User          @relation("TaskCreator", fields: [creatorId], references: [id], onDelete: Restrict)
+  comments       TaskComment[]
+  files          FileAsset[]
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@index([organizationId, status])
+  @@index([projectId, status])
+  @@index([assigneeId])
+}
+
+model TaskComment {
+  id        String   @id @default(cuid())
+  body      String
+  taskId    String
+  authorId  String
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model FileAsset {
+  id             String       @id @default(cuid())
+  name           String
+  mimeType       String
+  size           Int
+  url            String
+  publicId       String
+  organizationId String
+  taskId         String?
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  task           Task?        @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now())
+}
+
+model Notification {
+  id             String       @id @default(cuid())
+  title          String
+  body           String
+  readAt         DateTime?
+  userId         String
+  organizationId String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now())
+
+  @@index([userId, readAt])
+}
+
+model Subscription {
+  id                   String             @id @default(cuid())
+  plan                 String
+  status               SubscriptionStatus @default(TRIALING)
+  stripeCustomerId     String?
+  stripeSubscriptionId String?
+  currentPeriodEnd     DateTime?
+  organizationId       String
+  organization         Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  invoices             Invoice[]
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+}
+
+model Invoice {
+  id             String       @id @default(cuid())
+  stripeInvoiceId String?
+  amountDue      Int
+  amountPaid     Int
+  currency       String       @default("usd")
+  hostedUrl      String?
+  subscriptionId String
+  subscription   Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now())
+}
+
+model RefreshToken {
+  id          String    @id @default(cuid())
+  tokenHash   String    @unique
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  revokedAt   DateTime?
+  expiresAt   DateTime
+  replacedBy  String?
+  createdAt   DateTime  @default(now())
+}
+
+model AuditLog {
+  id             String       @id @default(cuid())
+  action         String
+  entity         String
+  entityId       String?
+  metadata       Json?
+  userId         String?
+  organizationId String
+  user           User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now())
+
+  @@index([organizationId, createdAt])
+}

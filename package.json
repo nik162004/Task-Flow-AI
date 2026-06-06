@@ -15,6 +15,7 @@
     "lint": "npm run lint --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "db:generate": "npm run db:generate --workspace @taskflow/api",
+    "db:push": "npm run db:push --workspace @taskflow/api",
     "db:migrate": "npm run db:migrate --workspace @taskflow/api",
     "db:seed": "npm run db:seed --workspace @taskflow/api",
     "docker:up": "docker compose up --build",

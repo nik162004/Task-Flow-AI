@@ -11,13 +11,29 @@ npm run test
 npm run build
 ```
 
-For local Postgres:
+For local development with authentication:
 
 ```bash
 docker compose up postgres -d
-npm run db:migrate
+npm run db:push
 npm run db:seed
 ```
+
+Create `apps/api/.env` from `apps/api/.env.example` and `apps/web/.env` from `apps/web/.env.example`.
+
+Run the API and web app in two terminals:
+
+```bash
+npm run dev --workspace @taskflow/api
+npm run dev --workspace @taskflow/web
+```
+
+Open `http://localhost:5173`.
+
+Demo credentials after seeding:
+
+- Email: `demo@taskflow.ai`
+- Password: `TaskFlow123!`
 
 ## Apps
 

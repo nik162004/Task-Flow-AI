@@ -1,9 +1,12 @@
-import { PrismaClient, Priority, Role, TaskStatus } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import dotenv from "dotenv";
+import { fileURLToPath } from "node:url";
 
-const prisma = new PrismaClient();
+dotenv.config({ path: fileURLToPath(new URL("../.env", import.meta.url)), override: true });
 
 async function main() {
+  const { PrismaClient } = await import("@prisma/client");
+  const prisma = new PrismaClient();
   const passwordHash = await bcrypt.hash("TaskFlow123!", 12);
   const user = await prisma.user.upsert({
     where: { email: "demo@taskflow.ai" },
@@ -22,7 +25,7 @@ async function main() {
     create: {
       name: "Acme AI",
       slug: "acme-ai",
-      memberships: { create: { userId: user.id, role: Role.OWNER } },
+      memberships: { create: { userId: user.id, role: "OWNER" } },
       subscriptions: { create: { plan: "Pro", status: "ACTIVE" } }
     }
   });
@@ -44,8 +47,8 @@ async function main() {
       {
         title: "Connect Google OAuth",
         description: "Enable workspace sign-in with managed Google accounts.",
-        status: TaskStatus.IN_PROGRESS,
-        priority: Priority.HIGH,
+        status: "IN_PROGRESS",
+        priority: "HIGH",
         labels: ["auth", "security"],
         organizationId: organization.id,
         projectId: project.id,
@@ -54,8 +57,8 @@ async function main() {
       },
       {
         title: "Prepare billing launch",
-        status: TaskStatus.TODO,
-        priority: Priority.URGENT,
+        status: "TODO",
+        priority: "URGENT",
         labels: ["stripe", "revenue"],
         organizationId: organization.id,
         projectId: project.id,
@@ -64,9 +67,8 @@ async function main() {
     ],
     skipDuplicates: true
   });
+
+  await prisma.$disconnect();
 }
 
-main()
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+main();
